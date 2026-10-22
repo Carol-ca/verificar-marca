@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔍 Verificador de Marcas Marketplace</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <!-- HEADER -->
+    <div class="header">
+        <h1>🔍 Verificador de Marcas Marketplace</h1>
+        <p>Verifique se seu anúncio contém marcas registradas antes de publicar</p>
+        <span class="badge">🇧🇷 Consulta INPI • Google • Base de Marcas</span>
+    </div>
+
+    <div class="container">
+        <!-- TABS DE ENTRADA -->
+        <div class="tabs">
+            <button class="tab active" onclick="trocarTab('link')" id="tab-link">
+                <span class="tab-icon">🔗</span>
+                Link do Anúncio
+            </button>
+            <button class="tab" onclick="trocarTab('imagem')" id="tab-imagem">
+                <span class="tab-icon">📸</span>
+                Print / Foto
+            </button>
+            <button class="tab" onclick="trocarTab('texto')" id="tab-texto">
+                <span class="tab-icon">✍️</span>
+                Texto Direto
+            </button>
+        </div>
+
+        <!-- FORMULÁRIO: LINK -->
+        <div class="card" id="form-link">
+            <div class="card-title">🔗 Verificar por Link do Anúncio</div>
+            <form onsubmit="verificarLink(event)">
+                <div class="form-group">
+                    <label for="input-url">Cole o link do anúncio (Mercado Livre, Shopee, Amazon, etc.)</label>
+                    <input type="url" id="input-url" class="form-control"
+                           placeholder="https://www.mercadolivre.com.br/produto-exemplo..."
+                           required>
+                </div>
+                <button type="submit" class="btn btn-primary" id="btn-link">
+                    🔍 Verificar Marcas
+                </button>
+            </form>
+        </div>
+
+        <!-- FORMULÁRIO: IMAGEM -->
+        <div class="card" id="form-imagem" style="display:none;">
+            <div class="card-title">📸 Verificar por Print / Foto</div>
+            <form onsubmit="verificarImagem(event)">
+                <div class="form-group">
+                    <label>Envie um print ou foto do anúncio</label>
+                    <div class="file-upload" onclick="document.getElementById('input-imagem').click()">
+                        <div class="upload-icon">📁</div>
+                        <strong>Clique aqui ou arraste a imagem</strong>
+                        <p>Formatos aceitos: JPG, PNG, BMP, TIFF</p>
+                        <input type="file" id="input-imagem" accept="image/*"
+                               onchange="previewImagem(this)">
+                        <div class="file-name" id="nome-arquivo"></div>
+                    </div>
+                    <img id="preview-img" class="image-preview" alt="Preview">
+                </div>
+                <button type="submit" class="btn btn-primary" id="btn-imagem">
+                    🔍 Analisar Imagem
+                </button>
+            </form>
+        </div>
+
+        <!-- FORMULÁRIO: TEXTO -->
+        <div class="card" id="form-texto" style="display:none;">
+            <div class="card-title">✍️ Verificar por Texto</div>
+            <form onsubmit="verificarTexto(event)">
+                <div class="form-group">
+                    <label for="input-titulo">Título do Anúncio</label>
+                    <input type="text" id="input-titulo" class="form-control"
+                           placeholder="Ex: Tênis Nike Air Max 90 Masculino Original Preto">
+                </div>
+                <div class="form-group">
+                    <label for="input-descricao">Descrição do Anúncio</label>
+                    <textarea id="input-descricao" class="form-control"
+                              placeholder="Cole aqui a descrição completa do anúncio..."></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary" id="btn-texto">
+                    🔍 Verificar Marcas
+                </button>
+            </form>
+        </div>
+
+        <!-- LOADING -->
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p><strong>Analisando anúncio...</strong></p>
+            <div class="step" id="loading-step">Extraindo termos do conteúdo...</div>
+        </div>
+
+        <!-- RESULTADOS -->
+        <div class="results" id="resultados">
+            <!-- Preenchido por JavaScript -->
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="footer">
+        <p>Verificador de Marcas Marketplace v1.0 | Ferramenta de apoio prévio</p>
+        <p>Consulta INPI + Google + Base de Marcas Conhecidas</p>
+    </div>
+
+    <script>
+        // ============================================
+        // CONTROLE DE TABS
+        // ============================================
+        function trocarTab(tab) {
+            // Resetar tabs
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.getElementById('form-link').style.display = 'none';
+            document.getElementById('form-imagem').style.display = 'none';
+            document.getElementById('form-texto').style.display = 'none';
+
+            // Ativar tab selecionada
+            document.getElementById('tab-' + tab).classList.add('active');
+            document.getElementById('form-' + tab).style.display = 'block';
+
+            // Limpar resultados
+            document.getElementById('resultados').classList.remove('active');
+        }
+
+        // ============================================
+        // PREVIEW DE IMAGEM
+        // ============================================
+        function previewImagem(input) {
+            const preview = document.getElementById('preview-img');
+            const nomeArquivo = document.getElementById('nome-arquivo');
+
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.src = e.target.result;
+                    preview.classList.add('active');
+                };
+                reader.readAsDataURL(input.files[0]);
+                nomeArquivo.textContent = '📄 ' + input.files[0].name;
+            }
+        }
+
+        // Drag and drop
+        document.addEventListener('DOMContentLoaded', function() {
+            const uploadArea = document.querySelector('.file-upload');
+            if (uploadArea) {
+                uploadArea.addEventListener('dragover', function(e) {
+                    e.preventDefault();
+                    this.style.borderColor = '#1a73e8';
+                    this.style.background = '#e8f0fe';
+                });
+
+                uploadArea.addEventListener('dragleave', function(e) {
+                    e.preventDefault();
+                    this.style.borderColor = '#dadce0';
+                    this.style.background = '#fafbfc';
+                });
+
+                uploadArea.addEventListener('drop', function(e) {
+                    e.preventDefault();
+                    this.style.borderColor = '#dadce0';
+                    this.style.background = '#fafbfc';
+                    const fileInput = document.getElementById('input-imagem');
+                    fileInput.files = e.dataTransfer.files;
+                    previewImagem(fileInput);
+                });
+            }
+        });
+
+        // ============================================
+        // ANIMAÇÃO DE LOADING
+        // ============================================
+        const etapasLoading = [
+            'Extraindo termos do conteúdo...',
+            'Consultando base de marcas conhecidas...',
+            'Pesquisando no INPI (busca.inpi.gov.br)...',
+            'Verificando no Google...',
+            'Analisando similaridade fonética...',
+            'Classificando riscos...',
+            'Gerando relatório...',
+        ];
+
+        let loadingInterval;
+        let etapaAtual = 0;
+
+        function iniciarLoading() {
+            etapaAtual = 0;
+            document.getElementById('loading').classList.add('active');
+            document.getElementById('resultados').classList.remove('active');
+            document.getElementById('loading-step').textContent = etapasLoading[0];
+
+            loadingInterval = setInterval(function() {
+                etapaAtual++;
+                if (etapaAtual < etapasLoading.length) {
+                    document.getElementById('loading-step').textContent = etapasLoading[etapaAtual];
+                }
+            }, 1500);
+        }
+
+        function pararLoading() {
+            clearInterval(loadingInterval);
+            document.getElementById('loading').classList.remove('active');
+        }
+
+        // ============================================
+        // VERIFICAÇÃO POR LINK
+        // ============================================
+        async function verificarLink(event) {
+            event.preventDefault();
+            const url = document.getElementById('input-url').value.trim();
+            if (!url) return;
+
+            iniciarLoading();
+
+            try {
+                const response = await fetch('/api/verificar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: url, tipo: 'link' })
+                });
+                const data = await response.json();
+                exibirResultados(data);
+            } catch (error) {
+                exibirErro('Erro ao processar requisição: ' + error.message);
+            }
+
+            pararLoading();
+        }
+
+        // ============================================
+        // VERIFICAÇÃO POR IMAGEM
+        // ============================================
+        async function verificarImagem(event) {
+            event.preventDefault();
+            const fileInput = document.getElementById('input-imagem');
+            if (!fileInput.files || !fileInput.files[0]) {
+                alert('Por favor, selecione uma imagem.');
+                return;
+            }
+
+            iniciarLoading();
+
+            try {
+                const formData = new FormData();
+                formData.append('imagem', fileInput.files[0]);
+                formData.append('tipo', 'imagem');
+
+                const response = await fetch('/api/verificar-imagem', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                exibirResultados(data);
+            } catch (error) {
+                exibirErro('Erro ao processar imagem: ' + error.message);
+            }
+
+            pararLoading();
+        }
+
+        // ============================================
+        // VERIFICAÇÃO POR TEXTO
+        // ============================================
+        async function verificarTexto(event) {
+            event.preventDefault();
+            const titulo = document.getElementById('input-titulo').value.trim();
+            const descricao = document.getElementById('input-descricao').value.trim();
+
+            if (!titulo && !descricao) {
+                alert('Por favor, preencha pelo menos o título ou a descrição.');
+                return;
+            }
+
+            iniciarLoading();
+
+            try {
+                const response = await fetch('/api/verificar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        texto: titulo + '\n' + descricao,
+                        tipo: 'texto'
+                    })
+                });
+                const data = await response.json();
+                exibirResultados(data);
+            } catch (error) {
+                exibirErro('Erro ao processar texto: ' + error.message);
+            }
+
+            pararLoading();
+        }
+
+        // ============================================
+        // EXIBIR RESULTADOS
+        // ============================================
+        function exibirResultados(data) {
+            const container = document.getElementById('resultados');
+            let html = '';
+
+            // Status geral
+            const statusConfig = {
+                'pode_anunciar': {
+                    classe: 'safe',
+                    icone: '✅',
+                    titulo: 'PODE VENDER NORMAL (PRODUTO LIVRE / GENÉRICO)',
+                    subtitulo: 'Nenhuma marca registrada encontrada no título, na descrição ou nas fotos. Termos livres para comercialização.'
+                },
+                'atencao': {
+                    classe: 'warning',
+                    icone: '⚠️',
+                    titulo: 'ATENÇÃO — POSSÍVEL RISCO / TERMO SEMELHANTE',
+                    subtitulo: 'Foram encontrados termos parecidos ou patentes em análise. Verifique antes de anunciar.'
+                },
+                'nao_pode': {
+                    classe: 'danger',
+                    icone: '❌',
+                    titulo: 'ANÚNCIO DE MARCA — NÃO PODE VENDER',
+                    subtitulo: 'Marca(s) registrada(s) ou patenteada(s) detectada(s). Risco imediato de denúncia, bloqueio da conta ou processo se você não for revendedor autorizado.'
+                }
+            };
+
+            const config = statusConfig[data.status_geral] || statusConfig['atencao'];
+
+            html += `
+                <div class="result-header ${config.classe}">
+                    <div class="result-icon">${config.icone}</div>
+                    <h2>${config.titulo}</h2>
+                    <p>${config.subtitulo}</p>
+                </div>
+            `;
+
+            // Dados isolados do anúncio (Título, Foto e Descrição)
+            if (data.dados_anuncio && (data.dados_anuncio.titulo || data.dados_anuncio.imagem_url)) {
+                html += `
+                    <div class="card" style="border-left: 4px solid var(--primary);">
+                        <div class="card-title">📦 Conteúdo Isolado do Anúncio (Sem ruído do site)</div>
+                        <div style="display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; margin-top: 10px;">
+                            ${data.dados_anuncio.imagem_url ? `
+                                <img src="${escapeHtml(data.dados_anuncio.imagem_url)}" 
+                                     alt="Foto do Anúncio" 
+                                     style="width: 140px; height: 140px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border);"
+                                     onerror="this.style.display='none'">
+                            ` : ''}
+                            <div style="flex: 1; min-width: 250px;">
+                                <h3 style="font-size: 1.1rem; margin-bottom: 8px; color: var(--text);">
+                                    ${escapeHtml(data.dados_anuncio.titulo || 'Título não identificado')}
+                                </h3>
+                                ${data.dados_anuncio.descricao ? `
+                                    <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 6px;">
+                                        <strong>Descrição:</strong> ${escapeHtml(data.dados_anuncio.descricao.substring(0, 300))}${data.dados_anuncio.descricao.length > 300 ? '...' : ''}
+                                    </p>
+                                ` : ''}
+                                ${data.dados_anuncio.texto_imagem_ocr ? `
+                                    <p style="font-size: 0.85rem; color: var(--primary); background: #e8f0fe; padding: 4px 8px; border-radius: 4px; display: inline-block;">
+                                        🔍 <strong>Texto lido na foto:</strong> ${escapeHtml(data.dados_anuncio.texto_imagem_ocr)}
+                                    </p>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Termos extraídos
+            if (data.termos_extraidos && data.termos_extraidos.length > 0) {
+                html += `
+                    <div class="card">
+                        <div class="card-title">🏷️ Termos Extraídos do Anúncio</div>
+                        <div class="terms-list">
+                            ${data.termos_extraidos.map(t => `<span class="term-tag">${escapeHtml(t)}</span>`).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Resultados detalhados
+            if (data.resultados && data.resultados.length > 0) {
+                html += '<div class="card"><div class="card-title">📋 Análise Detalhada por Termo</div>';
+
+                data.resultados.forEach(function(r) {
+                    const statusClass = r.status === 'pode_anunciar' ? 'safe' :
+                                       r.status === 'nao_pode' ? 'danger' : 'warning';
+                    const statusLabel = r.status === 'pode_anunciar' ? '✅ Livre' :
+                                       r.status === 'nao_pode' ? '❌ Protegida' : '⚠️ Atenção';
+
+                    html += `
+                        <div class="result-item ${statusClass}">
+                            <div class="term">${escapeHtml(r.termo)}</div>
+                            <span class="status-badge ${statusClass}">${statusLabel}</span>
+                            <div class="details">
+                                <p><strong>Motivo:</strong> ${escapeHtml(r.motivo)}</p>
+                    `;
+
+                    if (r.titular) {
+                        html += `<p><strong>Titular:</strong> ${escapeHtml(r.titular)}</p>`;
+                    }
+                    if (r.classe) {
+                        html += `<p><strong>Classe INPI:</strong> ${escapeHtml(r.classe)}</p>`;
+                    }
+                    if (r.tipo) {
+                        html += `<p><strong>Tipo:</strong> ${escapeHtml(r.tipo)}</p>`;
+                    }
+                    if (r.fonte) {
+                        html += `<p><strong>Fonte:</strong> ${escapeHtml(r.fonte)}</p>`;
+                    }
+
+                    html += `
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += '</div>';
+            }
+
+            // Disclaimer
+            html += `
+                <div class="disclaimer">
+                    <span class="icon">⚖️</span>
+                    <div>
+                        <strong>Aviso Legal:</strong> Esta ferramenta é apoio prévio para análise de marcas registradas.
+                        Não substitui consulta jurídica ou advogado de propriedade intelectual.
+                        Para confirmação definitiva, consulte o
+                        <a href="https://busca.inpi.gov.br/pePI/servlet/MarcaServletController?Action=InitialSearch"
+                           target="_blank">site oficial do INPI</a>
+                        ou um profissional especializado.
+                    </div>
+                </div>
+            `;
+
+            container.innerHTML = html;
+            container.classList.add('active');
+
+            // Scroll suave para resultados
+            container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function exibirErro(mensagem) {
+            const container = document.getElementById('resultados');
+            container.innerHTML = `
+                <div class="result-header warning">
+                    <div class="result-icon">⚠️</div>
+                    <h2>Erro na Verificação</h2>
+                    <p>${escapeHtml(mensagem)}</p>
+                </div>
+                <div class="disclaimer">
+                    <span class="icon">💡</span>
+                    <div>Tente novamente ou use outro método de entrada (texto, link ou imagem).</div>
+                </div>
+            `;
+            container.classList.add('active');
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
